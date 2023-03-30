@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using Discord;
+﻿using Discord;
 using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
 
@@ -7,8 +6,10 @@ public class Program
 {
     private DiscordSocketClient client;
     private Hexa.SlashCommandHandler slashCommandHandler;
-
     private string token;
+
+    public static Task Main(string[] args) => new Program().Run();
+
     public Program()
     {
         client = new DiscordSocketClient();
@@ -21,7 +22,7 @@ public class Program
         ArgumentNullException.ThrowIfNull(token);
         this.token = token;
     }
-    public static Task Main(string[] args) => new Program().Run();
+
     public async Task Run()
     {
         await client.LoginAsync(TokenType.Bot, token);
@@ -29,27 +30,39 @@ public class Program
         await Task.Delay(-1);
     }
 
-    public async void TestHandler(SocketSlashCommand cmd)
+    public async void EchoHandler(SocketSlashCommand cmd)
     {
         try
         {
-            await cmd.RespondAsync(text: "Test");
+            await cmd.RespondAsync(text: (string)(cmd.Data.Options.First().Value));
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
+            await cmd.RespondAsync(text: e.ToString());
         }
     }
 
     private Task Ready()
     {
+        SlashCommandOptionBuilder builder = new SlashCommandOptionBuilder()
+        .AddOption(
+            name: "text",
+            ApplicationCommandOptionType.String,
+            "Text",
+            isRequired: true
+        );
+        List<SlashCommandOptionBuilder> options = new() {
+            builder
+        };
+
         Hexa.SlashCommand slashCommand = new Hexa.SlashCommand()
         {
-            name = "test",
-            description = "test",
-            options = new List<SlashCommandOptionBuilder>(),
-            handler = TestHandler
+            name = "echo",
+            description = "Repeats the text you give it",
+            options = options,
+            handler = EchoHandler,
         };
+
         slashCommandHandler?.RegisterSlashCommand(slashCommand).Wait();
         return Task.CompletedTask;
     }

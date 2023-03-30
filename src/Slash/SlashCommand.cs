@@ -9,12 +9,15 @@ namespace Hexa
         required public string description { get; set; }
         required public List<SlashCommandOptionBuilder> options { get; set; }
         required public Action<SocketSlashCommand> handler { get; set; }
+        public ApplicationCommandProperties? properties { get; set; }
+        public ulong guild { get; set; }
     }
 
     public class SlashCommandHandler
     {
         private DiscordSocketClient client;
         public List<SlashCommand> slashCommands = new List<SlashCommand>();
+        private List<ApplicationCommandProperties> applicationCommandProperties = new();
 
         public SlashCommandHandler(DiscordSocketClient client)
         {
@@ -26,18 +29,32 @@ namespace Hexa
             LogMessage logMessage = new LogMessage(LogSeverity.Info, "Register", "Register slash command with name: " + slashCommand.name + ", description: " + slashCommand.description);
             Console.WriteLine(logMessage.ToString());
             SlashCommandBuilder slashCommandBuilder = new SlashCommandBuilder()
-                .WithName("test")
-                .WithDescription("test")
+                .WithName(slashCommand.name)
+                .WithDescription(slashCommand.description)
                 .AddOptions(slashCommand.options.ToArray());
             try
             {
-                await client.CreateGlobalApplicationCommandAsync(slashCommandBuilder.Build());
+                if(slashCommand.guild != 0) {
+                    await client.GetGuild(slashCommand.guild).CreateApplicationCommandAsync(slashCommandBuilder.Build());
+                } else {
+                    await client.CreateGlobalApplicationCommandAsync(slashCommandBuilder.Build());
+                }
             }
             catch (Exception e)
             {
                 Console.WriteLine(e);
             }
-            slashCommands.Add(slashCommand);
+            slashCommand.properties = slashCommandBuilder.Build();
+            slashCommands.Add(slashCommand);           
+        }
+
+        public void DeleteAllSlashCommands() {
+            List<ApplicationCommandProperties> applicationCommandProperties = new List<ApplicationCommandProperties>();
+            foreach(var slashCommand in slashCommands) {
+                ArgumentNullException.ThrowIfNull(slashCommand.properties);
+                applicationCommandProperties.Add(slashCommand.properties);
+            }
+            client.BulkOverwriteGlobalApplicationCommandsAsync(applicationCommandProperties.ToArray());
         }
     }
 }
